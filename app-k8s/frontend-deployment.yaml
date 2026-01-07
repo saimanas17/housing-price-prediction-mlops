@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: saimanasg/housing-frontend:v8
+        image: saimanasg/housing-frontend:v12
         imagePullPolicy: Always
         ports:
         - containerPort: 80

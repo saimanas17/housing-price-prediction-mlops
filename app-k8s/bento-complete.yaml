@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: bento
-        image: saimanasg/housing-bento:v8
+        image: saimanasg/housing-bento:v12
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
