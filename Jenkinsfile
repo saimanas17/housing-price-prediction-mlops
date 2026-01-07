@@ -60,7 +60,7 @@ pipeline {
             }
         }
         
-        stage('Build BentoML Service') {
+    stage('Build BentoML Service') {
     when {
         expression { env.SELECTED_SERVICE == 'all' || env.SELECTED_SERVICE == 'bento' }
     }
@@ -77,22 +77,8 @@ pipeline {
                     BENTO_TAG=\$(sudo -u manas /home/manas/.local/bin/bentoml list | grep housing-predictor | head -1 | awk '{print \$1}')
                     echo "Built Bento: \$BENTO_TAG"
                     
-                    # Extract hash
-                    BENTO_HASH=\$(echo \$BENTO_TAG | cut -d':' -f2)
+                    sudo -u manas /home/manas/.local/bin/bentoml containerize \$BENTO_TAG -t ${BENTO_IMAGE}:${VERSION_TAG}
                     
-                    # Path to Bento
-                    BENTO_PATH=/home/manas/bentoml/bentos/housing-predictor/\$BENTO_HASH
-                    echo "Bento path: \$BENTO_PATH"
-                    
-                    # Verify exists
-                    ls -la \$BENTO_PATH
-                    
-                    # Build Docker image
-                    cd \$BENTO_PATH
-                    docker build -t ${BENTO_IMAGE}:${VERSION_TAG} .
-                    docker tag ${BENTO_IMAGE}:${VERSION_TAG} ${BENTO_IMAGE}:latest
-                    
-                    echo "✅ Built: ${BENTO_IMAGE}:${VERSION_TAG}"
                 """
             }
         }
