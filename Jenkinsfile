@@ -181,7 +181,7 @@ pipeline {
                             if git diff --staged --quiet; then
                                 echo "No changes to commit"
                             else
-                                git commit -m "Build ${BUILD_NUMBER}: Update ${env.SELECTED_SERVICE} to ${VERSION_TAG}"
+                                git commit -m "Build ${BUILD_NUMBER}: Update ${env.SELECTED_SERVICE} to ${VERSION_TAG} [skip ci]"
                                 git push https://\${GIT_USER}:\${GIT_TOKEN}@github.com/saimanas17/${GIT_REPO}.git HEAD:refs/heads/master
                                 echo "✅ Pushed to Git"
                             fi
