@@ -1,0 +1,16 @@
+service: "service:HousingPredictor"
+labels:
+  owner: saimanasg
+  project: mlops-housing
+python:
+  packages:
+    - mlflow==2.17.2
+    - pandas==2.3.3
+    - numpy==1.26.4
+    - scikit-learn==1.8.0
+    - scipy==1.16.3
+    - psutil==7.2.1
+    - pyarrow==14.0.2
+envs:
+  - name: MLFLOW_TRACKING_URI
+    value: "http://mlflow.mlops.svc.cluster.local:5000"

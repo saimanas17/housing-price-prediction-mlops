@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-cors-config
+  namespace: mlops
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    http {
+        server {
+            listen 80;
+            
+            location / {
+                # CORS headers
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type' always;
+                
+                # Handle preflight OPTIONS request
+                if ($request_method = 'OPTIONS') {
+                    add_header 'Access-Control-Allow-Origin' '*';
+                    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+                    add_header 'Access-Control-Allow-Headers' 'Content-Type';
+                    add_header 'Content-Length' '0';
+                    return 204;
+                }
+                
+                # Proxy to BentoML
+                proxy_pass http://housing-bento.mlops.svc.cluster.local:3000;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            }
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bento-proxy
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bento-proxy
+  template:
+    metadata:
+      labels:
+        app: bento-proxy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-cors-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bento-proxy
+  namespace: mlops
+spec:
+  selector:
+    app: bento-proxy
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30091
+  type: NodePort

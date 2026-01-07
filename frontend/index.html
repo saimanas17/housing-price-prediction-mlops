@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Price Predictor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .predict-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .predict-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .predict-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .reset-btn {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .reset-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        #result {
+            margin-top: 30px;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+        
+        #result.success {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            display: block;
+        }
+        
+        #result.error {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            display: block;
+        }
+        
+        #result h2 {
+            margin-bottom: 10px;
+            font-size: 24px;
+            color: #2d3748;
+        }
+        
+        .price {
+            font-size: 48px;
+            font-weight: bold;
+            color: #2d3748;
+            margin: 20px 0;
+        }
+        
+        .api-info {
+            font-size: 12px;
+            color: #555;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 House Price Predictor</h1>
+        <p class="subtitle">MLOps Project - BentoML + MLflow Model Registry</p>
+        
+        <form id="predictionForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Lot Area (sq ft)</label>
+                    <input type="number" name="LotArea" value="8450" required>
+                </div>
+                <div class="form-group">
+                    <label>Overall Quality (1-10)</label>
+                    <input type="number" name="OverallQual" value="7" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                    <label>Overall Condition (1-10)</label>
+                    <input type="number" name="OverallCond" value="5" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                    <label>Year Built</label>
+                    <input type="number" name="YearBuilt" value="2003" required>
+                </div>
+                <div class="form-group">
+                    <label>Year Remodeled</label>
+                    <input type="number" name="YearRemodAdd" value="2003" required>
+                </div>
+                <div class="form-group">
+                    <label>Basement (sq ft)</label>
+                    <input type="number" name="TotalBsmtSF" value="856" required>
+                </div>
+                <div class="form-group">
+                    <label>1st Floor (sq ft)</label>
+                    <input type="number" name="1stFlrSF" value="856" required>
+                </div>
+                <div class="form-group">
+                    <label>2nd Floor (sq ft)</label>
+                    <input type="number" name="2ndFlrSF" value="854" required>
+                </div>
+                <div class="form-group">
+                    <label>Living Area (sq ft)</label>
+                    <input type="number" name="GrLivArea" value="1710" required>
+                </div>
+                <div class="form-group">
+                    <label>Full Bathrooms</label>
+                    <input type="number" name="FullBath" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Half Bathrooms</label>
+                    <input type="number" name="HalfBath" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Bedrooms</label>
+                    <input type="number" name="BedroomAbvGr" value="3" required>
+                </div>
+                <div class="form-group">
+                    <label>Total Rooms</label>
+                    <input type="number" name="TotRmsAbvGrd" value="8" required>
+                </div>
+                <div class="form-group">
+                    <label>Fireplaces</label>
+                    <input type="number" name="Fireplaces" value="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Garage Cars</label>
+                    <input type="number" name="GarageCars" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Garage Area (sq ft)</label>
+                    <input type="number" name="GarageArea" value="548" required>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="predict-btn" id="predictBtn">🔮 Predict Price</button>
+                <button type="button" class="reset-btn" onclick="resetForm()">🔄 Reset</button>
+            </div>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Predicting price...</p>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = 'http://' + window.location.hostname + ':30091/predict';
+        
+        console.log('API Endpoint:', API_ENDPOINT);
+
+        function calculateDerivedFeatures(data) {
+            data.YrSold = 2008;
+            data.MoSold = 2;
+            data.HouseAge = data.YrSold - parseInt(data.YearBuilt);
+            data.RemodAge = data.YrSold - parseInt(data.YearRemodAdd);
+            data.TotalSF = parseFloat(data.TotalBsmtSF) + parseFloat(data['1stFlrSF']) + parseFloat(data['2ndFlrSF']);
+            data.TotalBath = parseFloat(data.FullBath) + (parseFloat(data.HalfBath) * 0.5);
+            data.PricePerSqFt = 105.26;
+            data.WoodDeckSF = 0;
+            data.OpenPorchSF = 61;
+            data.PoolArea = 0;
+            return data;
+        }
+
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            console.log('Form submitted');
+            
+            const predictBtn = document.getElementById('predictBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            // Get form data
+            const formData = new FormData(e.target);
+            let data = {};
+            formData.forEach((value, key) => {
+                data[key] = parseFloat(value) || parseInt(value) || value;
+            });
+            
+            console.log('Form data:', data);
+            
+            // Calculate derived features
+            data = calculateDerivedFeatures(data);
+            console.log('With derived features:', data);
+            
+            // Show loading
+            predictBtn.disabled = true;
+            loading.classList.add('show');
+            result.style.display = 'none';
+            result.className = '';
+            
+            try {
+                console.log('Calling API:', API_ENDPOINT);
+                
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ input_data: data })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                const resultData = await response.json();
+                console.log('Response data:', resultData);
+                
+                loading.classList.remove('show');
+                predictBtn.disabled = false;
+                
+                if (resultData.status === 'success') {
+                    result.className = 'success';
+                    result.innerHTML = `
+                        <h2>✨ Predicted Price</h2>
+                        <div class="price">${resultData.predicted_price_formatted}</div>
+                        <p class="api-info">Served by: BentoML API | Model: housing model@production</p>
+                    `;
+                    result.style.display = 'block';
+                } else {
+                    throw new Error(resultData.message || 'Prediction failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                loading.classList.remove('show');
+                predictBtn.disabled = false;
+                
+                result.className = 'error';
+                result.innerHTML = `
+                    <h2>❌ Error</h2>
+                    <p>${error.message}</p>
+                    <p class="api-info">Check console for details</p>
+                `;
+                result.style.display = 'block';
+            }
+        });
+
+        function resetForm() {
+            document.getElementById('predictionForm').reset();
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('result').className = '';
+        }
+    </script>
+</body>
+</html>

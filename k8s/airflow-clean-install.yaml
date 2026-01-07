@@ -1,0 +1,186 @@
+---
+# Airflow PVCs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-logs-pvc
+  namespace: mlops
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-dags-pvc
+  namespace: mlops
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Custom Airflow image with packages pre-installed
+# For now we'll use apache/airflow:2.8.0-python3.10 and install at runtime
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+      component: scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow
+        component: scheduler
+    spec:
+      containers:
+      - name: scheduler
+        image: apache/airflow:2.8.0-python3.10
+        args:
+        - bash
+        - -c
+        - |
+          # Install required packages
+          pip install pandas numpy scikit-learn mlflow==2.17.2
+          # Start scheduler
+          airflow scheduler
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "LocalExecutor"
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow_user:airflow_pass123@postgres.mlops.svc.cluster.local:5432/airflow_db"
+        - name: AIRFLOW__CORE__LOAD_EXAMPLES
+          value: "False"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8E="
+        - name: MLFLOW_TRACKING_URI
+          value: "http://10.142.0.3:30000"
+        volumeMounts:
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+        - name: airflow-dags
+          mountPath: /opt/airflow/dags
+        - name: mlops-project
+          mountPath: /opt/mlops
+      volumes:
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: airflow-logs-pvc
+      - name: airflow-dags
+        persistentVolumeClaim:
+          claimName: airflow-dags-pvc
+      - name: mlops-project
+        hostPath:
+          path: /mnt/mlops-data
+          type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+      component: webserver
+  template:
+    metadata:
+      labels:
+        app: airflow
+        component: webserver
+    spec:
+      initContainers:
+      - name: airflow-init
+        image: apache/airflow:2.8.0-python3.10
+        command:
+        - bash
+        - -c
+        - |
+          airflow db migrate
+          airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "LocalExecutor"
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow_user:airflow_pass123@postgres.mlops.svc.cluster.local:5432/airflow_db"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8E="
+        volumeMounts:
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+      containers:
+      - name: webserver
+        image: apache/airflow:2.8.0-python3.10
+        args:
+        - bash
+        - -c
+        - airflow webserver
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "LocalExecutor"
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow_user:airflow_pass123@postgres.mlops.svc.cluster.local:5432/airflow_db"
+        - name: AIRFLOW__CORE__LOAD_EXAMPLES
+          value: "False"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8E="
+        - name: MLFLOW_TRACKING_URI
+          value: "http://10.142.0.3:30000"
+        volumeMounts:
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+        - name: airflow-dags
+          mountPath: /opt/airflow/dags
+        - name: mlops-project
+          mountPath: /opt/mlops
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+      volumes:
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: airflow-logs-pvc
+      - name: airflow-dags
+        persistentVolumeClaim:
+          claimName: airflow-dags-pvc
+      - name: mlops-project
+        hostPath:
+          path: /mnt/mlops-data
+          type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver
+  namespace: mlops
+spec:
+  selector:
+    app: airflow
+    component: webserver
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30001
+  type: NodePort

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: housing-bento
+  namespace: mlops
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: housing-bento
+  template:
+    metadata:
+      labels:
+        app: housing-bento
+    spec:
+      containers:
+      - name: bento
+        image: saimanasg/housing-bento:v3
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow.mlops.svc.cluster.local:5000"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: housing-bento
+  namespace: mlops
+spec:
+  selector:
+    app: housing-bento
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30090
+  type: NodePort
