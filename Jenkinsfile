@@ -24,7 +24,21 @@ pipeline {
                 echo '📥 Checking out source code...'
                 checkout scm
             }
-        }        
+        }
+		stage('Check Skip CI') {
+    steps {
+        script {
+            def commitMsg = sh(returnStdout: true, script: 'git log -1 --pretty=%B').trim()
+            echo "📝 Last commit: ${commitMsg}"
+            
+            if (commitMsg.contains('[skip ci]')) {
+                echo "⏭️  Skipping - commit has [skip ci]"
+                currentBuild.result = 'ABORTED'
+                error('Build skipped due to [skip ci] in commit message')
+            }
+        }
+    }
+}
         
         stage('Service Selection') {
             steps {
