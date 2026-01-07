@@ -78,6 +78,7 @@ pipeline {
                     echo "Built Bento: \$BENTO_TAG"
                     
                     sudo -u manas /home/manas/.local/bin/bentoml containerize \$BENTO_TAG -t ${BENTO_IMAGE}:${VERSION_TAG}
+					docker tag ${BENTO_IMAGE}:${VERSION_TAG} ${BENTO_IMAGE}:latest
                     
                 """
             }
